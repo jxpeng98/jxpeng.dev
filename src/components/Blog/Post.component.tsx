@@ -16,7 +16,7 @@ export function _Post({ index, frontmatter }: PostProps): JSX.Element {
 	const href = `/blog/${frontmatter.slug}`;
 
 	return (
-		<Link aria-label={ariaLabel} href={href} passHref>
+		<Link aria-label={ariaLabel} href={href} passHref legacyBehavior>
 			<a
 				aria-label={ariaLabel}
 				className="flex flex-col bg-white bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 backdrop-filter backdrop-blur-sm border-2 border-gray-100 dark:border-gray-500 rounded-2xl overflow-hidden hover:shadow-xl cursor-pointer transform motion-safe:hover:-translate-y-1 default-transition default-focus"
