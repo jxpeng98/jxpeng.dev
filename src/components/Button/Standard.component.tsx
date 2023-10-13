@@ -38,7 +38,7 @@ export function Standard({ children, className, icon, ...rest }: StandardProps):
 				);
 
 			return (
-				<Link href={rest.href} passHref legacyBehavior>
+				<Link href={rest.href} passHref>
 					<a {...rest} className={clsx(ButtonStyles, className)} href={rest.href}>
 						{icon && <Icon className="mr-2" icon={icon} />}
 						{children}

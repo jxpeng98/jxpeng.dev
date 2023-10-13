@@ -66,7 +66,7 @@ function MenuButtonIcon({
  */
 function MenuLink({ children, href, onClick, ...rest }: MenuLinkProps): JSX.Element {
 	return (
-		<Link href={href} passHref legacyBehavior>
+		<Link href={href} passHref>
 			<StyledMenuItem onClick={(...args): void => onClick(...args)} {...rest}>
 				{children}
 			</StyledMenuItem>
