@@ -1,7 +1,7 @@
 import emojiRegex from 'emoji-regex';
 import { log } from 'next-axiom';
 
-import type { GitHubRepos, Project, ProjectPost } from '~/types';
+import type { Project } from '~/types';
 
 /**
  * Fetch Projects
@@ -13,67 +13,77 @@ import type { GitHubRepos, Project, ProjectPost } from '~/types';
  * @TODO Switch to v3 API using GraphQL to save over-fetching
  */
 export async function fetchProjects(): Promise<Array<Project> | null> {
-	const response = await fetch('https://api.github.com/users/nurodev/repos', {
-		headers: {
-			...(process.env.GITHUB_PAT && {
-				authorization: `token ${process.env.GITHUB_PAT}`,
-			}),
-		},
-	});
-	if (response.status !== 200) {
-		const json = (await response.json()) as {
-			documentation_url: string;
-			message: string;
-		};
+	const username = 'jxpeng98'
+	const query = 'query {\n' +
+		`  user(login: "${username}") {` +
+		'    pinnedItems(first: 8) {\n' +
+		'      edges {\n' +
+		'        node {\n' +
+		'          ... on Repository {\n' +
+		'            name\n' +
+		'            url\n' +
+		'            description\n' +
+		'            isArchived\n' +
+		'          }\n' +
+		'        }\n' +
+		'      }\n' +
+		'    }\n' +
+		'  }\n' +
+		'}\n'
 
-		console.error({ error: json });
-		log.error('Failed to fetch projects', {
-			error: json,
-		});
-
-		return null;
+	const headers = {
+		'Authorization':`Bearer ${process.env.GITHUB_PAT}`,
+		'Content-Type': 'application/json',
 	}
+	const body = JSON.stringify({query: query})
+	const response = await fetch('https://api.github.com/graphql', {
+		method: 'POST',
+		headers: headers,
+		body: body
+	}
+	)
+	// const response = await fetch('https://api.github.com/users/jxpeng98/repos', {
+	// 	headers: {
+	// 		...(process.env.GITHUB_PAT && {
+	// 			authorization: `token ${process.env.GITHUB_PAT}`,
+	// 		}),
+	// 	},
+	// });
+	if (response.status !== 200) {
+		const json = await response.json();
+		console.error({ error: json });
+		log.error('Failed to fetch projects', { error: json });
+		return null;
+	} else {
+		const json = await response.json();
+		// Collect the pinned repos
+		const pinnedRepos = json.data.user.pinnedItems.edges.map((edge) => edge.node);
 
-	const json = (await response.json()) as GitHubRepos;
+		// Map the repos and collect the information
+		return pinnedRepos
+			.filter((repo) => !repo.isArchived && repo.description)
+			.map((repo) => {
+					// Strip the emoji suffix from the repo description
+					const trimmedDescription = repo.description.split(' ');
+					trimmedDescription.shift();
+					const description = trimmedDescription.join(' ');
 
-	const { default: rawProjectPosts } = await import('~/data/projects.json');
-	const projectPosts = rawProjectPosts as Array<ProjectPost>;
+					return {
+						description,
+						icon: ((): string => {
+							if (!repo.description) return undefined;
 
-	const projects: Array<Project> = json
-		.map((repo) => {
-			if (!repo.topics.includes('portfolio')) return null;
+							const char = repo.description.split(' ')[0];
 
-			if (repo.archived) return null;
-
-			// Strip the emoji suffix from the repo description
-			const trimmedDescription = repo.description.split(' ');
-			trimmedDescription.shift();
-			const description = trimmedDescription.join(' ');
-
-			// Check if there is a matching blog post to attach
-			const repoPost =
-				projectPosts.length > 0 &&
-				projectPosts.find(
-					(post) => post.repository.toLowerCase() === repo.full_name.toLowerCase(),
-				);
-
-			return {
-				description,
-				icon: ((): string => {
-					if (!repo.description) return undefined;
-
-					const char = repo.description.split(' ')[0];
-
-					return emojiRegex().test(char) ? char : undefined;
-				})(),
-				homepage: repo.homepage ?? undefined,
-				name: repo.name,
-				post: repoPost ? `/blog/${repoPost.post}` : undefined,
-				template: false,
-				url: repo.html_url.toLowerCase(),
-			} as Project;
-		})
-		.filter((project) => project !== null);
-
-	return projects;
+							return emojiRegex().test(char) ? char : undefined;
+						})(),
+						homepage: repo.homepage ?? undefined,
+						name: repo.name,
+						post: undefined,
+						template: false,
+						url: repo.url.toLowerCase(),
+					} as Project;
+				}
+			); // Add this return statement
+	}
 }
